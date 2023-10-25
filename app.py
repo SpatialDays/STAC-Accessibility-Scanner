@@ -47,9 +47,14 @@ def is_collection_public_and_valid(collection: dict) -> bool:
     Check if a collection has assets and that one of the assets is publicly downloadable.
     """
     # Find the link with the rel type 'items'
-    items_link = [link for link in collection["links"] if link["rel"] == "items"][0][
-        "href"
-    ]
+    items_link = next(
+        (link["href"] for link in collection["links"] if link["rel"] == "items"), None
+    )
+
+    if not items_link:
+        logging.info(f"-- No items endpoint found for collection {collection['id']}")
+        return False
+
     logging.info(f"-- Items endpoint - {items_link}")
 
     items_response = safe_request("GET", items_link)
@@ -69,19 +74,22 @@ def is_collection_public_and_valid(collection: dict) -> bool:
         )
         return False
 
-    # Check for features
-    if not items.get("features"):
+    # Check for the presence of features and if there's at least one feature in the list
+    if "features" not in items or not items["features"]:
         logging.info(f"-- No features found for collection {collection['id']}")
         return False
 
-    # Get the first feature and check for assets
-    first_feature_assets = items["features"][0]["assets"]
+    # Get the first feature
+    first_feature = items["features"][0]
 
-    if not first_feature_assets:
+    # Check for assets in the first feature
+    if "assets" not in first_feature or not first_feature["assets"]:
         logging.info(
             f"-- No assets found for the first feature of collection {collection['id']}"
         )
         return False
+
+    first_feature_assets = first_feature["assets"]
 
     # Get the href of the first asset
     asset_name = next(iter(first_feature_assets))
@@ -135,7 +143,9 @@ def check_publicly_available_catalogs():
 
     for catalog in filtered_catalogs:
         logging.info(f"Catalog - {catalog['title']}")
-
+        # # for testing see if title starts with FedEO
+        # if not catalog["title"].startswith("FedEO"):
+        #     continue
         collections = return_collections(catalog["url"])
         if not collections or "collections" not in collections:
             logging.info(f"No collections found for catalog {catalog['title']}")
