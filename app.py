@@ -1,13 +1,11 @@
 # Standard library imports
 import os
 from json import JSONDecodeError
-import time
 from urllib.parse import urljoin
 
 # Third-party library imports
 import logging
-import requests
-from flask import Flask
+from flask import Flask, jsonify
 from requests.exceptions import RequestException
 
 # Local application/library specific imports
@@ -31,11 +29,17 @@ logging.basicConfig(
 def index():
     logging.info("Index route")
     count = db.session.query(Collection).count()
+    return f"Hello, world! There are {count} collections in the database."
+
+
+@app.route("/check-catalogs")
+def check_catalogs():
     try:
         check_publicly_available_catalogs()
+        return jsonify({"message": "Catalogs checked successfully."}), 200
     except Exception as e:
-        logging.error(f"Error while checking catalogs: {e}")
-    return f"Hello, world! There are {count} collections in the database."
+        logging.error(f"Failed to check catalogs. Error: {e}")
+        return jsonify({"message": "Failed to check catalogs."}), 500
 
 
 def is_collection_public_and_valid(collection: dict) -> bool:
@@ -139,7 +143,27 @@ def check_publicly_available_catalogs():
 
         for collection in collections["collections"]:
             logging.info(f"Collection - {collection['id']}")
-            if is_collection_public_and_valid(collection):
+            accessible = is_collection_public_and_valid(collection)
+
+            # Check if the collection already exists in the database
+            existing_collection = Collection.query.filter_by(
+                name=collection["id"]
+            ).first()
+            if existing_collection:
+                # Update the existing record
+                existing_collection.accessible = accessible
+                db.session.commit()
+            else:
+                # Add a new record
+                new_collection = Collection(
+                    name=collection["id"],
+                    url=collection["links"][0]["href"],
+                    accessible=accessible,
+                )
+                db.session.add(new_collection)
+                db.session.commit()
+
+            if accessible:
                 successful_collections.append(collection["id"])
             else:
                 unsuccessful_collections.append(collection["id"])
