@@ -29,7 +29,7 @@ logging.basicConfig(
 def index():
     logging.info("Index route")
     count = db.session.query(Collection).count()
-    return f"Hello, world! There are {count} collections in the database."
+    return f"There are {count} collections in the database."
 
 
 @app.route("/check-catalogs")
