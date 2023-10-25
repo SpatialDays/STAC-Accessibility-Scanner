@@ -1,10 +1,17 @@
-from json import JSONDecodeError
+# Standard library imports
 import os
+from json import JSONDecodeError
+from urllib.parse import urljoin
+
+# Third-party library imports
 import logging
 import requests
 from flask import Flask
+from requests.exceptions import RequestException
+
+# Local application/library specific imports
 from models import Collection, db
-from urllib.parse import urljoin
+
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
@@ -23,7 +30,10 @@ logging.basicConfig(
 def index():
     logging.info("Index route")
     count = db.session.query(Collection).count()
-    check_publicly_available_catalogs()
+    try:
+        check_publicly_available_catalogs()
+    except Exception as e:
+        logging.error(f"Error while checking catalogs: {e}")
     return f"Hello, world! There are {count} collections in the database."
 
 
@@ -32,20 +42,26 @@ def is_collection_public_and_valid(collection: dict) -> bool:
     Check if a collection has assets and that one of the assets is publicly downloadable.
     """
     # Find the link with the rel type 'items'
-    items_link = [link for link in collection["links"] if link["rel"] == "items"][0]["href"]
+    items_link = [link for link in collection["links"] if link["rel"] == "items"][0][
+        "href"
+    ]
     logging.info(f"-- Items endpoint - {items_link}")
-    
+
     items_response = requests.get(items_link)
 
     # Check the HTTP Status Code
     if items_response.status_code != 200:
-        logging.error(f"Failed to fetch items from {items_link}. Status code: {items_response.status_code}")
+        logging.error(
+            f"Failed to fetch items from {items_link}. Status code: {items_response.status_code}"
+        )
         return False
 
     try:
         items = items_response.json()
     except JSONDecodeError:
-        logging.error(f"Failed to decode JSON from {items_link}. Response content: {items_response.text}")
+        logging.error(
+            f"Failed to decode JSON from {items_link}. Response content: {items_response.text}"
+        )
         return False
 
     # Check for features
@@ -83,12 +99,18 @@ def return_collections(catalog_url: str):
     Return all collections from a catalog.
     """
     collection_url = urljoin(catalog_url, "collections")
-    response = requests.get(collection_url)
-
-    # Error handling and checks to ensure the response contains valid JSON might be added here.
-    collections = response.json()
-
-    return collections
+    try:
+        response = requests.get(
+            collection_url, timeout=10
+        )  # Setting a timeout of 10 seconds
+        response.raise_for_status()  # This will raise an HTTPError if the HTTP request returned an unsuccessful status code
+        collections = response.json()
+        return collections
+    except (RequestException, JSONDecodeError) as e:
+        logging.error(
+            f"Failed to fetch or decode collections from {collection_url}. Error: {e}"
+        )
+        return None
 
 
 def check_publicly_available_catalogs():
@@ -99,21 +121,27 @@ def check_publicly_available_catalogs():
     unsuccessful_collections = []
     lookup_api: str = "https://stacindex.org/api/catalogs"
     logging.info(f"STAC INDEX - {lookup_api}")
-    response = requests.get(lookup_api)
-    catalogs = response.json()
+    try:
+        response = requests.get(lookup_api, timeout=10)
+        response.raise_for_status()
+        catalogs = response.json()
+    except (RequestException, JSONDecodeError) as e:
+        logging.error(f"Failed to fetch or decode catalogs from STAC INDEX. Error: {e}")
+        return
+
     filtered_catalogs = [i for i in catalogs if not i["isPrivate"] and i["isApi"]]
 
     for catalog in filtered_catalogs:
         logging.info(f"Catalog - {catalog['title']}")
-        # if not catalog["title"].startswith("CBERS"):
+        # if not catalog["title"].startswith("Astraea Earth"):
         #     continue
 
         collections = return_collections(catalog["url"])
-        if not collections or 'collections' not in collections:
+        if not collections or "collections" not in collections:
             logging.info(f"No collections found for catalog {catalog['title']}")
             continue
 
-        for collection in collections['collections']:
+        for collection in collections["collections"]:
             logging.info(f"Collection - {collection['id']}")
             if is_collection_public_and_valid(collection):
                 successful_collections.append(collection["id"])
