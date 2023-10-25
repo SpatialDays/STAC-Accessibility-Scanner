@@ -1,6 +1,7 @@
 # Standard library imports
 import os
 from json import JSONDecodeError
+import time
 from urllib.parse import urljoin
 
 # Third-party library imports
@@ -11,7 +12,7 @@ from requests.exceptions import RequestException
 
 # Local application/library specific imports
 from models import Collection, db
-
+from utils import safe_request
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
@@ -47,7 +48,7 @@ def is_collection_public_and_valid(collection: dict) -> bool:
     ]
     logging.info(f"-- Items endpoint - {items_link}")
 
-    items_response = requests.get(items_link)
+    items_response = safe_request("GET", items_link)
 
     # Check the HTTP Status Code
     if items_response.status_code != 200:
@@ -85,7 +86,7 @@ def is_collection_public_and_valid(collection: dict) -> bool:
 
     # Check the asset for its accessibility with a HEAD request to avoid downloading the entire asset
     try:
-        asset_response = requests.head(asset_url)
+        asset_response = safe_request("HEAD", asset_url)
         logging.info(f"-- Asset response - {asset_response.status_code}")
     except Exception as e:
         logging.info(f"-- Asset response - {e}")
@@ -100,9 +101,7 @@ def return_collections(catalog_url: str):
     """
     collection_url = urljoin(catalog_url, "collections")
     try:
-        response = requests.get(
-            collection_url, timeout=10
-        )  # Setting a timeout of 10 seconds
+        response = safe_request("GET", collection_url)
         response.raise_for_status()  # This will raise an HTTPError if the HTTP request returned an unsuccessful status code
         collections = response.json()
         return collections
@@ -119,10 +118,9 @@ def check_publicly_available_catalogs():
     """
     successful_collections = []
     unsuccessful_collections = []
-    lookup_api: str = "https://stacindex.org/api/catalogs"
-    logging.info(f"STAC INDEX - {lookup_api}")
+    lookup_api = "https://stacindex.org/api/catalogs"
     try:
-        response = requests.get(lookup_api, timeout=10)
+        response = safe_request("GET", lookup_api)
         response.raise_for_status()
         catalogs = response.json()
     except (RequestException, JSONDecodeError) as e:
@@ -133,8 +131,6 @@ def check_publicly_available_catalogs():
 
     for catalog in filtered_catalogs:
         logging.info(f"Catalog - {catalog['title']}")
-        # if not catalog["title"].startswith("Astraea Earth"):
-        #     continue
 
         collections = return_collections(catalog["url"])
         if not collections or "collections" not in collections:
