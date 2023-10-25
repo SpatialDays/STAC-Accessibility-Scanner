@@ -1,9 +1,8 @@
+from json import JSONDecodeError
 import os
 import logging
 import requests
-from threading import Thread
-from flask import Flask, jsonify, current_app
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask
 from models import Collection, db
 from urllib.parse import urljoin
 
@@ -33,12 +32,21 @@ def is_collection_public_and_valid(collection: dict) -> bool:
     Check if a collection has assets and that one of the assets is publicly downloadable.
     """
     # Find the link with the rel type 'items'
-    items_link = [link for link in collection["links"] if link["rel"] == "items"][0][
-        "href"
-    ]
+    items_link = [link for link in collection["links"] if link["rel"] == "items"][0]["href"]
     logging.info(f"-- Items endpoint - {items_link}")
+    
     items_response = requests.get(items_link)
-    items = items_response.json()
+
+    # Check the HTTP Status Code
+    if items_response.status_code != 200:
+        logging.error(f"Failed to fetch items from {items_link}. Status code: {items_response.status_code}")
+        return False
+
+    try:
+        items = items_response.json()
+    except JSONDecodeError:
+        logging.error(f"Failed to decode JSON from {items_link}. Response content: {items_response.text}")
+        return False
 
     # Check for features
     if not items.get("features"):
