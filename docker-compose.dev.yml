@@ -1,0 +1,20 @@
+version: '3'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/stacaccessibility_db"
+      FLASK_ENV: development
+    volumes:
+      - .:/app
+  db:
+    image: "postgres"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: stacaccessibility_db
