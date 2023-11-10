@@ -44,13 +44,16 @@ def check_if_stac_item_is_http_downloadable(_stac_item: dict) -> bool:
     Returns: True if the STAC item is downloadable using http, False otherwise
 
     """
-    asset_key = find_first_downloadable_asset_key(_stac_item["assets"])
-    asset_href = _stac_item["assets"][asset_key]["href"]
+    try:
+        asset_key = find_first_downloadable_asset_key(_stac_item["assets"])
+        asset_href = _stac_item["assets"][asset_key]["href"]
 
-    if not asset_href.startswith("http"):
-        logging.info(f"Asset href does not start with http: {asset_href}")
+        if not asset_href.startswith("http"):
+            logging.info(f"Asset href does not start with http: {asset_href}")
+            return False
+        return True
+    except KeyError:
         return False
-    return True
 
 
 def check_if_stac_item_is_http_directly_downloadable_without_token(_stac_item: dict) -> bool:
