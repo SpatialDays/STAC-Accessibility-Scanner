@@ -110,9 +110,9 @@ def get_list_of_public_catalogs():
     """
     Check all publicly available catalogs and loop through their collections to see if they are valid.
     """
-    # return [{
-    #     "url" : "https://planetarycomputer.microsoft.com/api/stac/v1/"
-    # }]
+    return [{
+        "url" : "https://planetarycomputer.microsoft.com/api/stac/v1/"
+    }]
     lookup_api = "https://stacindex.org/api/catalogs"
     try:
         response = safe_request("GET", lookup_api)

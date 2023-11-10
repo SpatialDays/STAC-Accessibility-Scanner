@@ -13,12 +13,13 @@ class Collection(base):
     __tablename__ = 'collections'
     catalog_url = sa.Column(sa.String)
     collection_id = sa.Column(sa.String)
-    fips_code = sa.Column(sa.String)
     spatial_extent = sa.Column(ga.Geometry('MULTIPOLYGON'))
     # make a composite primary key from catalog_url, collection_id and spatial_extent
-    sa.PrimaryKeyConstraint(catalog_url, collection_id, fips_code, spatial_extent)
+    sa.PrimaryKeyConstraint(catalog_url, collection_id, spatial_extent)
     http_downloadable = sa.Column(sa.Boolean)
     requires_token = sa.Column(sa.Boolean)
+    is_from_mpc = sa.Column(sa.Boolean, default=False)
+    mpc_token_obtaining_url = sa.Column(sa.String, default="")
 
 
 if __name__ == '__main__':
