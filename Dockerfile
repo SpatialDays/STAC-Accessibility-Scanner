@@ -1,5 +1,5 @@
 # Use an official Python runtime as the base image
-FROM python:3.8-slim
+FROM python:3.10
 
 # Set the working directory in the container
 WORKDIR /app
@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 5000
 
 # Run the application
-CMD ["python", "app.py"]
+CMD ["python", "server.py"]

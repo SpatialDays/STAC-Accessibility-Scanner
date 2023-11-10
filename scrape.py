@@ -185,6 +185,9 @@ if __name__ == "__main__":
                         is_from_mpc = False
                         mpc_token_obtaining_url = ""
 
+                        if "planetarycomputer" in results_catalog_url:
+                            is_from_mpc = True
+
                         if check_if_stac_item_is_http_downloadable(response_json["features"][0]):
                             http_downloadable = True
                             if check_if_stac_item_is_http_directly_downloadable_without_token(
@@ -192,9 +195,7 @@ if __name__ == "__main__":
                                 http_downloadable = True
                                 requires_token = False
                             else:
-                                requires_token = True
                                 if "planetarycomputer" in results_catalog_url:
-                                    is_from_mpc = True
                                     token_present, token_url = check_if_sas_token_is_present_for_collection_on_mpc(
                                         results_collection_id)
                                     if token_present:
