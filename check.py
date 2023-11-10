@@ -114,19 +114,19 @@ def check_if_sas_token_is_present_for_collection_on_mpc(_collection_id: str) -> 
 
 if __name__ == "__main__":
     # Section 1: Get List of Public Catalogs
-    # results = {catalog["url"]: {} for catalog in get_list_of_public_catalogs()}
-    # logging.info(f"Found {len(results)} catalogs")
-    #
-    # # Section 2: Retrieve Collections from Catalogs
-    # for catalog_url in results.keys():
-    #     logging.info(f"Checking {catalog_url} for collections")
-    #     collections = get_collections_from_catalog_via_url(catalog_url)
-    #     logging.info(f"Found {len(collections['collections'])} collections")
-    #     for collection in collections["collections"]:
-    #         results[catalog_url][collection["id"]] = {}
-    results = {}
-    results["https://planetarycomputer.microsoft.com/api/stac/v1/"] = {}
-    results["https://planetarycomputer.microsoft.com/api/stac/v1/"]["landsat-c2-l2"] = {}
+    results = {catalog["url"]: {} for catalog in get_list_of_public_catalogs()}
+    logging.info(f"Found {len(results)} catalogs")
+
+    # Section 2: Retrieve Collections from Catalogs
+    for catalog_url in results.keys():
+        logging.info(f"Checking {catalog_url} for collections")
+        collections = get_collections_from_catalog_via_url(catalog_url)
+        logging.info(f"Found {len(collections['collections'])} collections")
+        for collection in collections["collections"]:
+            results[catalog_url][collection["id"]] = {}
+    # results = {}
+    # results["https://planetarycomputer.microsoft.com/api/stac/v1/"] = {}
+    # results["https://planetarycomputer.microsoft.com/api/stac/v1/"]["landsat-c2-l2"] = {}
 
     # Section 3: Read World Borders GeoDataFrame
     world_borders_geodataframe = geopandas.read_file(
