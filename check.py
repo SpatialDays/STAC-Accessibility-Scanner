@@ -1,102 +1,70 @@
-import json
 import logging
-from urllib.parse import urljoin
-from requests.exceptions import RequestException
-from json.decoder import JSONDecodeError
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+import json
+
 import geopandas
 import shapely
 
-logging.basicConfig(level=logging.INFO)
-
-from database import Collection, session, ga
+from database import store_collection_in_database
 from utils import *
 
 
-def store_collection_in_database(
-    catalog_url: str,
-    collection_id: str,
-    spatial_extent: shapely.geometry.multipolygon.MultiPolygon,
-    http_downloadable: bool,
-    requires_token: bool,
-    is_from_mpc: bool = False,
-    mpc_token_obtaining_url: str = "",
-):
+def find_first_downloadable_asset_key(_assets: dict) -> str:
     """
-    Store or update a collection in the database.
-    """
-    collection_db_entry = (
-        session.query(Collection)
-        .filter(
-            Collection.catalog_url == catalog_url,
-            Collection.collection_id == collection_id,
-            ga.functions.ST_Covers(
-                Collection.spatial_extent,
-                ga.shape.from_shape(spatial_extent, srid=4326),
-            ),
-        )
-        .first()
-    )
-    if collection_db_entry is None:
-        logging.info(f"Adding {catalog_url} {collection_id} to the database")
-        collection_db_entry = Collection()
-        collection_db_entry.catalog_url = catalog_url
-        collection_db_entry.collection_id = collection_id
-        collection_db_entry.spatial_extent = ga.shape.from_shape(
-            spatial_extent, srid=4326
-        )
-        collection_db_entry.http_downloadable = http_downloadable
-        collection_db_entry.requires_token = requires_token
-        collection_db_entry.is_from_mpc = is_from_mpc
-        collection_db_entry.mpc_token_obtaining_url = mpc_token_obtaining_url
-        session.add(collection_db_entry)
-        session.commit()
-        logging.info(f"Added {catalog_url} {collection_id} to the database")
-    else:
-        logging.info(f"Updating {catalog_url} {collection_id} in the database")
-        collection_db_entry.http_downloadable = http_downloadable
-        collection_db_entry.requires_token = requires_token
-        collection_db_entry.is_from_mpc = is_from_mpc
-        collection_db_entry.mpc_token_obtaining_url = mpc_token_obtaining_url
-        session.commit()
-        logging.info(f"Updated {catalog_url} {collection_id} in the database")
+    Find the first asset key that has a downloadable asset.
 
-    logging.info(f"Added {catalog_url} {collection_id} to the database")
+    Tries to find a first tif, tiff or nc file. If they are not present, the first asset key is returned.
 
-import logging
+    Args:
+        _assets: Assets dictionary from a STAC item
+    Returns: First asset key that has a downloadable asset
 
-def find_first_downloadable_asset_key(assets: dict):
     """
-    Find the first asset key where href ends with specific extensions.
-    """
-    for asset_key, asset_info in assets.items():
+    for asset_key, asset_info in _assets.items():
         asset_key_href = asset_info["href"].lower()
         if (
-            asset_key_href.endswith(".tif")
-            or asset_key_href.endswith(".tiff")
-            or asset_key_href.endswith(".nc")
+                asset_key_href.endswith(".tif")
+                or asset_key_href.endswith(".tiff")
+                or asset_key_href.endswith(".nc")
         ):
             return asset_key
     # If no asset with specific extensions is found, return the first asset key
-    return list(assets.keys())[0]
+    return list(_assets.keys())[0]
 
-def check_if_stac_item_is_http_downloadable(stac_item: dict):
+
+def check_if_stac_item_is_http_downloadable(_stac_item: dict) -> bool:
     """
-    Check if a STAC item is http downloadable.
+    Check if a STAC item is downloadable using http.
+
+    Args:
+        _stac_item: STAC item dictionary from a STAC search response
+
+    Returns: True if the STAC item is downloadable using http, False otherwise
+
     """
-    asset_key = find_first_downloadable_asset_key(stac_item["assets"])
-    asset_href = stac_item["assets"][asset_key]["href"]
+    asset_key = find_first_downloadable_asset_key(_stac_item["assets"])
+    asset_href = _stac_item["assets"][asset_key]["href"]
 
     if not asset_href.startswith("http"):
         logging.info(f"Asset href does not start with http: {asset_href}")
         return False
     return True
 
-def check_if_stac_item_is_http_directly_downloadable_without_token(stac_item: dict):
+
+def check_if_stac_item_is_http_directly_downloadable_without_token(_stac_item: dict) -> bool:
     """
-    Check if a STAC item is downloadable.
+    Check if a STAC item is downloadable using http without a token or some signing mechanism.
+
+    Args:
+        _stac_item: STAC item dictionary from a STAC search response
+
+    Returns: True if the STAC item is downloadable using http without a token or some signing mechanism, False otherwise
+
     """
-    asset_key = find_first_downloadable_asset_key(stac_item["assets"])
-    asset_href = stac_item["assets"][asset_key]["href"]
+    asset_key = find_first_downloadable_asset_key(_stac_item["assets"])
+    asset_href = _stac_item["assets"][asset_key]["href"]
 
     if not asset_href.startswith("http"):
         logging.info(f"Asset href does not start with http: {asset_href}")
@@ -114,11 +82,23 @@ def check_if_stac_item_is_http_directly_downloadable_without_token(stac_item: di
         return False
 
 
-def check_if_sas_token_is_present_for_collection_on_mpc(collection_id:str):
+def check_if_sas_token_is_present_for_collection_on_mpc(_collection_id: str) -> tuple:
+    """
+    Check if a SAS token is present for a collection on the Planetary Computer.
+
+    If the SAS token is present, return True and the URL to obtain the SAS token. If the SAS token is not present,
+    return False and the URL to obtain the SAS token.
+
+    Args:
+        _collection_id: Collection ID
+
+    Returns: Tuple of (True/False, URL to obtain the SAS token)
+
+    """
     logger.info(
-        f"Checking if collection {collection_id} has available token"
+        f"Checking if collection {_collection_id} has available token"
     )
-    token_check_url = f"https://planetarycomputer.microsoft.com/api/sas/v1/token/{collection_id}"
+    token_check_url = f"https://planetarycomputer.microsoft.com/api/sas/v1/token/{_collection_id}"
     try:
         token_check_response = safe_request(
             "GET", token_check_url
@@ -134,16 +114,19 @@ def check_if_sas_token_is_present_for_collection_on_mpc(collection_id:str):
 
 if __name__ == "__main__":
     # Section 1: Get List of Public Catalogs
-    results = {catalog["url"]: {} for catalog in get_list_of_public_catalogs()}
-    logging.info(f"Found {len(results)} catalogs")
-
-    # Section 2: Retrieve Collections from Catalogs
-    for catalog_url in results.keys():
-        logging.info(f"Checking {catalog_url} for collections")
-        collections = get_collections_from_catalog_via_url(catalog_url)
-        logging.info(f"Found {len(collections['collections'])} collections")
-        for collection in collections["collections"]:
-            results[catalog_url][collection["id"]] = {}
+    # results = {catalog["url"]: {} for catalog in get_list_of_public_catalogs()}
+    # logging.info(f"Found {len(results)} catalogs")
+    #
+    # # Section 2: Retrieve Collections from Catalogs
+    # for catalog_url in results.keys():
+    #     logging.info(f"Checking {catalog_url} for collections")
+    #     collections = get_collections_from_catalog_via_url(catalog_url)
+    #     logging.info(f"Found {len(collections['collections'])} collections")
+    #     for collection in collections["collections"]:
+    #         results[catalog_url][collection["id"]] = {}
+    results = {}
+    results["https://planetarycomputer.microsoft.com/api/stac/v1/"] = {}
+    results["https://planetarycomputer.microsoft.com/api/stac/v1/"]["landsat-c2-l2"] = {}
 
     # Section 3: Read World Borders GeoDataFrame
     world_borders_geodataframe = geopandas.read_file(
@@ -201,17 +184,18 @@ if __name__ == "__main__":
 
                         if check_if_stac_item_is_http_downloadable(response_json["features"][0]):
                             http_downloadable = True
-                            if check_if_stac_item_is_http_directly_downloadable_without_token(response_json["features"][0]):
+                            if check_if_stac_item_is_http_directly_downloadable_without_token(
+                                    response_json["features"][0]):
                                 http_downloadable = True
                                 requires_token = False
                             else:
                                 requires_token = True
                                 if "planetarycomputer" in results_catalog_url:
                                     is_from_mpc = True
-                                    token_present, token_url = check_if_sas_token_is_present_for_collection_on_mpc(results_collection_id)
+                                    token_present, token_url = check_if_sas_token_is_present_for_collection_on_mpc(
+                                        results_collection_id)
                                     if token_present:
                                         mpc_token_obtaining_url = token_url
-
 
                         store_collection_in_database(
                             results_catalog_url,
