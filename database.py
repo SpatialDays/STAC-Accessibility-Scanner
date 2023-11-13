@@ -103,4 +103,7 @@ def store_collection_in_database(
 
 
 if __name__ == '__main__':
+    plugin_enable_statement =  sa.text("CREATE EXTENSION IF NOT EXISTS postgis;")
+    with engine.connect() as conn:
+        conn.execute(plugin_enable_statement)
     base.metadata.create_all(engine)
