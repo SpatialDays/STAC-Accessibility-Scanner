@@ -202,10 +202,12 @@ if __name__ == "__main__":
                                         mpc_token_obtaining_url = token_url 
 
 
-                        # convert shapely_multipolygon_envelope to MultiPolygon
-                        shapely_multipolygon_envelope = shapely.geometry.multipolygon.MultiPolygon(
-                            [shapely_multipolygon_envelope]
-                        )
+                        # convert shapely_multipolygon_envelope to MultiPolygon if it is not multipolygon
+                        if not isinstance(shapely_multipolygon_envelope, shapely.geometry.multipolygon.MultiPolygon):
+                            shapely_multipolygon_envelope = shapely.geometry.multipolygon.MultiPolygon(
+                                [shapely_multipolygon_envelope]
+                            )
+                            
                         store_collection_in_database(
                             results_catalog_url,
                             results_collection_id,
