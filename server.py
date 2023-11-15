@@ -17,7 +17,7 @@ APP_PORT = os.getenv("APP_PORT", "5000")
 APP_DEBUG = os.getenv("APP_DEBUG", "True") == "True"
 
 app = flask.Flask(__name__)
-app = CORS(app)
+CORS(app)
 
 
 # Create /healthz endpoint
