@@ -4,6 +4,7 @@ import json
 logger = logging.getLogger(__name__)
 import os
 import flask
+from flask_cors import CORS
 from dotenv import load_dotenv
 import shapely
 import geoalchemy2 as ga
@@ -16,6 +17,7 @@ APP_PORT = os.getenv("APP_PORT", "5000")
 APP_DEBUG = os.getenv("APP_DEBUG", "True") == "True"
 
 app = flask.Flask(__name__)
+app = CORS(app)
 
 
 # Create /healthz endpoint
