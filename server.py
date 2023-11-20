@@ -53,7 +53,8 @@ def get_collections():
 
     results = {}
     for i in collections:
-        aoi_as_geojson = json.loads(shapely.geometry.mapping(aoi_shapely))
+        aoi_as_shapely = shapely.geometry.shape(aoi)
+        aoi_as_geojson = json.loads(shapely.to_geojson(aoi_as_shapely))
         results[i.collection_id] = {
             "catalog_url": i.catalog_url,
             "http_downloadable": i.http_downloadable,
