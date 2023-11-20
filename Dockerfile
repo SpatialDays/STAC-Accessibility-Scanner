@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 5000
 
 # Run the application
-CMD ["python", "server.py"]
+CMD ["gunicorn", "server:app"]
