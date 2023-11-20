@@ -55,6 +55,8 @@ def get_collections():
 
     results = {}
     for i in collections:
+        aoi_as_shapely = ga.shape.to_shape(i.spatial_extent)
+        aoi_as_geojson = json.loads(shapely.to_geojson(aoi_as_shapely))
         results[i.collection_id] = {
             "catalog_url": i.catalog_url,
             "http_downloadable": i.http_downloadable,
@@ -62,8 +64,9 @@ def get_collections():
             "is_from_mpc": i.is_from_mpc,
             "mpc_token_obtaining_url": i.mpc_token_obtaining_url,
             "collection_stac_url": urljoin(i.catalog_url, f"collections/{i.collection_id}"),
+            "aoi": aoi_as_geojson,
         }
-    return jsonify(results), 200
+    return flask.jsonify(results), 200
 
 
 if __name__ == "__main__":
