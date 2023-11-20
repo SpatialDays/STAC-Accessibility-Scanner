@@ -6,7 +6,7 @@ import os
 import flask
 from flask_cors import CORS
 from dotenv import load_dotenv
-import shapely
+
 import geoalchemy2 as ga
 from database import session, Collection
 from urllib.parse import urljoin
@@ -37,6 +37,7 @@ def healthz():
 def get_collections():
     data = request.json
     aoi = data.get("aoi")
+    is_available_from_mpc = data.get("is_available_from_mpc")
     if not aoi:
         return {"error": "aoi is required"}, 400
 
@@ -51,6 +52,12 @@ def get_collections():
     for key, value in data.items():
         if key in Collection.__table__.columns and value is not None:
             collections = collections.filter(getattr(Collection, key) == value)
+            
+    if is_available_from_mpc:
+        collections = collections.filter(
+            (Collection.is_from_mpc == False) | 
+            ((Collection.is_from_mpc == True) & (Collection.mpc_token_obtaining_url != None))
+        )
     collections = collections.all()
 
     results = {}
