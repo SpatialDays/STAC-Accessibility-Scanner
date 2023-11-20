@@ -63,7 +63,9 @@ def get_collections():
             "requires_token": i.requires_token,
             "is_from_mpc": i.is_from_mpc,
             "mpc_token_obtaining_url": i.mpc_token_obtaining_url,
-            "collection_stac_url": urljoin(i.catalog_url, f"collections/{i.collection_id}"),
+            "collection_stac_url": urljoin(
+                i.catalog_url, f"collections/{i.collection_id}"
+            ),
             "aoi": aoi_as_geojson,
         }
     return flask.jsonify(results), 200
