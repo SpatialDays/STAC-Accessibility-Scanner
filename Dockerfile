@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 5000
 
 # Run the application
-CMD ["gunicorn", "server:app"]
+CMD ["gunicorn", "server:app", "-b", "0.0.0.0:8000", "-w", "4"]
