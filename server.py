@@ -31,11 +31,12 @@ def healthz():
 # Make a POST endpoint which will take catalog_url and aoi
 # in geojson format and filter the database for available collections
 @app.route("/get_collections", methods=["POST"])
+@app.route("/get_collections/", methods=["POST"])
 def get_collections():
     data = request.json
     aoi = data.get("aoi")
     if not aoi:
-        return {"error": "aoi is required"}, 400    
+        return {"error": "aoi is required"}, 400
 
     aoi_shapely = shape(aoi)
     collections = session.query(Collection).filter(
