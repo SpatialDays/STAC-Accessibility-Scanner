@@ -11,8 +11,9 @@ import geoalchemy2 as ga
 from database import session, Collection
 from urllib.parse import urljoin
 
+from shapely import to_geojson
 from shapely.geometry import shape
-from flask import request, jsonify
+from flask import request
 from urllib.parse import urljoin
 
 load_dotenv()
@@ -52,18 +53,21 @@ def get_collections():
     for key, value in data.items():
         if key in Collection.__table__.columns and value is not None:
             collections = collections.filter(getattr(Collection, key) == value)
-            
+
     if is_available_from_mpc:
         collections = collections.filter(
-            (Collection.is_from_mpc == False) | 
-            ((Collection.is_from_mpc == True) & (Collection.mpc_token_obtaining_url != None))
+            (Collection.is_from_mpc == False)
+            | (
+                (Collection.is_from_mpc == True)
+                & (Collection.mpc_token_obtaining_url != None)
+            )
         )
     collections = collections.all()
 
     results = {}
     for i in collections:
         aoi_as_shapely = ga.shape.to_shape(i.spatial_extent)
-        aoi_as_geojson = json.loads(shapely.to_geojson(aoi_as_shapely))
+        aoi_as_geojson = json.loads(to_geojson(aoi_as_shapely))
         results[i.collection_id] = {
             "catalog_url": i.catalog_url,
             "http_downloadable": i.http_downloadable,
