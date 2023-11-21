@@ -8,6 +8,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 
 import geoalchemy2 as ga
+from sqlalchemy import or_, and_
 from database import session, Collection
 from urllib.parse import urljoin
 
@@ -36,39 +37,44 @@ def healthz():
 @app.route("/get_collections", methods=["POST"])
 @app.route("/get_collections/", methods=["POST"])
 def get_collections():
-    data = request.json
+    data = request.get_json()
     aoi = data.get("aoi")
-    is_available_from_mpc = data.get("is_available_from_mpc")
-    if not aoi:
-        return {"error": "aoi is required"}, 400
+    public = data.get("public")
+    mpc_with_token = data.get("mpc_with_token")
 
     aoi_shapely = shape(aoi)
-    collections = session.query(Collection).filter(
-        ga.functions.ST_Intersects(
-            Collection.spatial_extent, ga.shape.from_shape(aoi_shapely, srid=4326)
-        )
-    )
-
-    # Apply filters directly from request data
-    for key, value in data.items():
-        if key in Collection.__table__.columns and value is not None:
-            collections = collections.filter(getattr(Collection, key) == value)
-
-    if is_available_from_mpc:
-        collections = collections.filter(
-            (Collection.is_from_mpc == False)
-            | (
-                (Collection.is_from_mpc == True)
-                & (Collection.mpc_token_obtaining_url != None)
+    collections = (
+        session.query(Collection)
+        .filter(
+            ga.functions.ST_Intersects(
+                Collection.spatial_extent, ga.shape.from_shape(aoi_shapely, srid=4326)
             )
         )
-    collections = collections.all()
+        .distinct()
+    )
 
-    results = {}
-    for i in collections:
+    conditions = []
+    if public or mpc_with_token:
+        if public:
+            conditions.append(
+                and_(
+                    Collection.http_downloadable == True,
+                    Collection.requires_token == False,
+                )
+            )
+        if mpc_with_token:
+            conditions.append(
+                and_(Collection.requires_token == True, Collection.is_from_mpc == True)
+            )
+
+    collections = collections.filter(or_(*conditions))
+    collection_results = collections.all()    
+    
+    response_data = {}
+    for i in collection_results:
         aoi_as_shapely = ga.shape.to_shape(i.spatial_extent)
         aoi_as_geojson = json.loads(to_geojson(aoi_as_shapely))
-        results[i.collection_id] = {
+        response_data[i.collection_id] = {
             "catalog_url": i.catalog_url,
             "http_downloadable": i.http_downloadable,
             "requires_token": i.requires_token,
@@ -79,7 +85,7 @@ def get_collections():
             ),
             "aoi": aoi_as_geojson,
         }
-    return flask.jsonify(results), 200
+    return flask.jsonify(response_data), 200
 
 
 if __name__ == "__main__":
