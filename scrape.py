@@ -25,9 +25,8 @@ def find_first_downloadable_asset_key(_assets: dict) -> str:
     for asset_key, asset_info in _assets.items():
         asset_key_href = asset_info["href"].lower()
         if (
-                asset_key_href.endswith(".tif")
-                or asset_key_href.endswith(".tiff")
-                or asset_key_href.endswith(".nc")
+            asset_key_href.endswith(".tif")
+            or asset_key_href.endswith(".tiff")
         ):
             return asset_key
     # If no asset with specific extensions is found, return the first asset key
@@ -56,7 +55,9 @@ def check_if_stac_item_is_http_downloadable(_stac_item: dict) -> bool:
         return False
 
 
-def check_if_stac_item_is_http_directly_downloadable_without_token(_stac_item: dict) -> bool:
+def check_if_stac_item_is_http_directly_downloadable_without_token(
+    _stac_item: dict,
+) -> bool:
     """
     Check if a STAC item is downloadable using http without a token or some signing mechanism.
 
@@ -98,14 +99,12 @@ def check_if_sas_token_is_present_for_collection_on_mpc(_collection_id: str) -> 
     Returns: Tuple of (True/False, URL to obtain the SAS token)
 
     """
-    logger.info(
-        f"Checking if collection {_collection_id} has available token"
+    logger.info(f"Checking if collection {_collection_id} has available token")
+    token_check_url = (
+        f"https://planetarycomputer.microsoft.com/api/sas/v1/token/{_collection_id}"
     )
-    token_check_url = f"https://planetarycomputer.microsoft.com/api/sas/v1/token/{_collection_id}"
     try:
-        token_check_response = safe_request(
-            "GET", token_check_url
-        )
+        token_check_response = safe_request("GET", token_check_url)
         token_check_response.raise_for_status()
         if token_check_response.status_code == 200:
             return True, token_check_url
@@ -188,26 +187,37 @@ if __name__ == "__main__":
                         if "planetarycomputer" in results_catalog_url:
                             is_from_mpc = True
 
-                        if check_if_stac_item_is_http_downloadable(response_json["features"][0]):
+                        if check_if_stac_item_is_http_downloadable(
+                            response_json["features"][0]
+                        ):
                             http_downloadable = True
                             if check_if_stac_item_is_http_directly_downloadable_without_token(
-                                    response_json["features"][0]):
+                                response_json["features"][0]
+                            ):
                                 http_downloadable = True
                                 requires_token = False
                             else:
                                 if "planetarycomputer" in results_catalog_url:
-                                    token_present, token_url = check_if_sas_token_is_present_for_collection_on_mpc(
-                                        results_collection_id)
+                                    (
+                                        token_present,
+                                        token_url,
+                                    ) = check_if_sas_token_is_present_for_collection_on_mpc(
+                                        results_collection_id
+                                    )
                                     if token_present:
-                                        mpc_token_obtaining_url = token_url 
-
+                                        mpc_token_obtaining_url = token_url
 
                         # convert shapely_multipolygon_envelope to MultiPolygon if it is not multipolygon
-                        if not isinstance(shapely_multipolygon_envelope, shapely.geometry.multipolygon.MultiPolygon):
-                            shapely_multipolygon_envelope = shapely.geometry.multipolygon.MultiPolygon(
-                                [shapely_multipolygon_envelope]
+                        if not isinstance(
+                            shapely_multipolygon_envelope,
+                            shapely.geometry.multipolygon.MultiPolygon,
+                        ):
+                            shapely_multipolygon_envelope = (
+                                shapely.geometry.multipolygon.MultiPolygon(
+                                    [shapely_multipolygon_envelope]
+                                )
                             )
-                            
+
                         store_collection_in_database(
                             results_catalog_url,
                             results_collection_id,
