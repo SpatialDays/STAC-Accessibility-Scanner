@@ -27,6 +27,7 @@ def find_first_downloadable_asset_key(_assets: dict) -> str:
         if (
             asset_key_href.endswith(".tif")
             or asset_key_href.endswith(".tiff")
+            or asset_key_href.endswith(".nc")
         ):
             return asset_key
     # If no asset with specific extensions is found, return the first asset key
