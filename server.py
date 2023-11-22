@@ -64,27 +64,31 @@ def get_collections():
             )
         if mpc_with_token:
             conditions.append(
-                and_(Collection.requires_token == True, Collection.is_from_mpc == True)
+                and_(
+                    Collection.requires_token == True,
+                    Collection.is_from_mpc == True,
+                    bool(Collection.mpc_token_obtaining_url != ""),
+                )
             )
 
     collections = collections.filter(or_(*conditions))
-    collection_results = collections.all()    
-    
-    response_data = {}
+    collection_results = collections.all()
+
+    response_data = []
     for i in collection_results:
-        aoi_as_shapely = ga.shape.to_shape(i.spatial_extent)
-        aoi_as_geojson = json.loads(to_geojson(aoi_as_shapely))
-        response_data[i.collection_id] = {
-            "catalog_url": i.catalog_url,
-            "http_downloadable": i.http_downloadable,
-            "requires_token": i.requires_token,
-            "is_from_mpc": i.is_from_mpc,
-            "mpc_token_obtaining_url": i.mpc_token_obtaining_url,
-            "collection_stac_url": urljoin(
-                i.catalog_url, f"collections/{i.collection_id}"
-            ),
-            "aoi": aoi_as_geojson,
-        }
+        response_data.append(
+            {
+                "collection_id": i.collection_id,
+                "catalog_url": i.catalog_url,
+                "http_downloadable": i.http_downloadable,
+                "requires_token": i.requires_token,
+                "is_from_mpc": i.is_from_mpc,
+                "mpc_token_obtaining_url": i.mpc_token_obtaining_url,
+                "collection_stac_url": urljoin(
+                    i.catalog_url, f"collections/{i.collection_id}"
+                ),
+            }
+        )
     return flask.jsonify(response_data), 200
 
 
