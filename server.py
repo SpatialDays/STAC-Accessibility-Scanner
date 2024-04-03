@@ -6,9 +6,15 @@ import os
 import flask
 from flask_cors import CORS
 from dotenv import load_dotenv
-import shapely
+
 import geoalchemy2 as ga
+from sqlalchemy import or_, and_
 from database import session, Collection
+from urllib.parse import urljoin
+
+from shapely import to_geojson
+from shapely.geometry import shape
+from flask import request
 from urllib.parse import urljoin
 
 load_dotenv()
@@ -17,7 +23,7 @@ APP_PORT = os.getenv("APP_PORT", "5000")
 APP_DEBUG = os.getenv("APP_DEBUG", "True") == "True"
 
 app = flask.Flask(__name__)
-app = CORS(app)
+CORS(app)
 
 
 # Create /healthz endpoint
@@ -29,43 +35,61 @@ def healthz():
 # Make a POST endpoint which will take catalog_url and aoi
 # in geojson format and filter the database for available collections
 @app.route("/get_collections", methods=["POST"])
+@app.route("/get_collections/", methods=["POST"])
 def get_collections():
-    aoi = flask.request.json.get("aoi", None)
-    if not aoi:
-        # send 400 bad request with message that aoi is required
-        return {"error": "aoi is required"}, 400
-    
-    catalog_url = flask.request.json.get("catalog_url", None)
-    collection_id = flask.request.json.get("collection_id", None)
-    aoi_shapely = shapely.geometry.shape(aoi)
-    collections = session.query(Collection).filter(
-        ga.functions.ST_Intersects(
-            Collection.spatial_extent, ga.shape.from_shape(aoi_shapely, srid=4326)
-        ),
+    data = request.get_json()
+    aoi = data.get("aoi")
+    public = data.get("public")
+    mpc_with_token = data.get("mpc_with_token")
+
+    aoi_shapely = shape(aoi)
+    collections = (
+        session.query(Collection)
+        .filter(
+            ga.functions.ST_Intersects(
+                Collection.spatial_extent, ga.shape.from_shape(aoi_shapely, srid=4326)
+            )
+        )
+        .distinct()
     )
 
-    if catalog_url:
-        collections = collections.filter(Collection.catalog_url == catalog_url)
+    conditions = []
+    if public or mpc_with_token:
+        if public:
+            conditions.append(
+                and_(
+                    Collection.http_downloadable == True,
+                    Collection.requires_token == False,
+                )
+            )
+        if mpc_with_token:
+            conditions.append(
+                and_(
+                    Collection.requires_token == True,
+                    Collection.is_from_mpc == True,
+                    bool(Collection.mpc_token_obtaining_url != ""),
+                )
+            )
 
-    if collection_id:
-        collections = collections.filter(Collection.collection_id == collection_id)
+    collections = collections.filter(or_(*conditions))
+    collection_results = collections.all()
 
-    collections = collections.all()
-
-    results = {}
-    for i in collections:
-        aoi_as_shapely = shapely.geometry.shape(aoi)
-        aoi_as_geojson = json.loads(shapely.to_geojson(aoi_as_shapely))
-        results[i.collection_id] = {
-            "catalog_url": i.catalog_url,
-            "http_downloadable": i.http_downloadable,
-            "requires_token": i.requires_token,
-            "is_from_mpc": i.is_from_mpc,
-            "mpc_token_obtaining_url": i.mpc_token_obtaining_url,
-            "collection_stac_url": urljoin(i.catalog_url, f"collections/{i.collection_id}"),
-            "aoi": aoi_as_geojson,
-        }
-    return flask.jsonify(results), 200
+    response_data = []
+    for i in collection_results:
+        response_data.append(
+            {
+                "collection_id": i.collection_id,
+                "catalog_url": i.catalog_url,
+                "http_downloadable": i.http_downloadable,
+                "requires_token": i.requires_token,
+                "is_from_mpc": i.is_from_mpc,
+                "mpc_token_obtaining_url": i.mpc_token_obtaining_url,
+                "collection_stac_url": urljoin(
+                    i.catalog_url, f"collections/{i.collection_id}"
+                ),
+            }
+        )
+    return flask.jsonify(response_data), 200
 
 
 if __name__ == "__main__":

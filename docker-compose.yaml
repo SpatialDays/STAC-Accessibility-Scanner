@@ -1,23 +1,25 @@
 version: "3"
 
 services:
-  # web:
-  #   build: .
-  #   ports:
-  #     - "5005:5005"
-  #   depends_on:
-  #     - db
-  #   environment:
-  #     DATABASE_HOST: "db"
-  #     DATABASE_PORT: "5432"
-  #     DATABASE_NAME: "stacaccessibility_db"
-  #     DATABASE_USER: "postgres"
-  #     DATABASE_PASSWORD: "postgres"
-  #     APP_HOST: "0.0.0.0"
-  #     APP_PORT: "5005"
-  #     APP_DEBUG: "True"
-  #   volumes:
-  #     - .:/app
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    environment:
+      DATABASE_HOST: "db"
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: "stacaccessibility_db"
+      DATABASE_USER: "postgres"
+      DATABASE_PASSWORD: "postgres"
+      APP_HOST: "0.0.0.0"
+      APP_PORT: "8000"
+      APP_DEBUG: "True"
+    volumes:
+      - .:/app
+    command: ["python", "server.py"]
+
 
   # scrape:
   #   build: .
@@ -30,7 +32,7 @@ services:
   #     DATABASE_USER: "postgres"
   #     DATABASE_PASSWORD: "postgres"
   #     APP_HOST: "0.0.0.0"
-  #     APP_PORT: "5000"
+  #     APP_PORT: "8000"
   #     APP_DEBUG: "True"
   #   command: ["python", "scrape.py"]
 
@@ -45,7 +47,7 @@ services:
       DATABASE_USER: "postgres"
       DATABASE_PASSWORD: "postgres"
       APP_HOST: "0.0.0.0"
-      APP_PORT: "5000"
+      APP_PORT: "8000"
       APP_DEBUG: "True"
     command: ["python", "database.py"]
 
@@ -58,12 +60,4 @@ services:
     ports:
       - "15432:5432"
 
-  # db:
-  #   image: postgres:13
-  #   environment:
-  #     POSTGRES_USER: "postgres"
-  #     POSTGRES_PASSWORD: "postgres"
-  #     POSTGRES_DB: "stacaccessibility_db"
-  #   ports:
-  #     - "15432:5432"
   

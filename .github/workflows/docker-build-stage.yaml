@@ -9,8 +9,7 @@ on:
 
 jobs:
   docker-build-push-dev:
-    # runs-on: ubuntu-latest
-    runs-on: spatialdays-self-hosted-runner-1
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -32,7 +31,7 @@ jobs:
         with:
           context: .
           file: Dockerfile
-          cache-from: type=registry,ref=${{ secrets.EO_PROJ_STAGING_DOCKER_REGISTRY_URL }}/stac-accesability-scanner:cache
-          cache-to: type=registry,ref=${{ secrets.EO_PROJ_STAGING_DOCKER_REGISTRY_URL }}/stac-accesability-scanner:cache,mode=max
+          cache-from: type=registry,ref=${{ secrets.EO_PROJ_STAGING_DOCKER_REGISTRY_URL }}/stac-accessibility-scanner:cache
+          cache-to: type=registry,ref=${{ secrets.EO_PROJ_STAGING_DOCKER_REGISTRY_URL }}/stac-accessibility-scanner:cache,mode=max
           push: true
-          tags: ${{ secrets.EO_PROJ_STAGING_DOCKER_REGISTRY_URL }}/stac-accesability-scanner:${{ env.SHORT_SHA }}
+          tags: ${{ secrets.EO_PROJ_STAGING_DOCKER_REGISTRY_URL }}/stac-accessibility-scanner:${{ env.SHORT_SHA }}

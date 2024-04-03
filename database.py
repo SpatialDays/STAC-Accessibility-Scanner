@@ -78,7 +78,7 @@ def store_collection_in_database(
         .first()
     )
     if collection_db_entry is None:
-        logging.debug(f"Adding {_catalog_url} {_collection_id} to the database")
+        logger.debug(f"Adding {_catalog_url} {_collection_id} to the database")
         collection_db_entry = Collection()
         collection_db_entry.catalog_url = _catalog_url
         collection_db_entry.collection_id = _collection_id
@@ -91,19 +91,24 @@ def store_collection_in_database(
         collection_db_entry.mpc_token_obtaining_url = _mpc_token_obtaining_url
         session.add(collection_db_entry)
         session.commit()
-        logging.info(f"Added {_catalog_url} {_collection_id} to the database")
+        logger.info(f"Added {_catalog_url} {_collection_id} to the database")
     else:
-        logging.debug(f"Updating {_catalog_url} {_collection_id} in the database")
+        logger.debug(f"Updating {_catalog_url} {_collection_id} in the database")
         collection_db_entry.http_downloadable = _http_downloadable
         collection_db_entry.requires_token = _requires_token
         collection_db_entry.is_from_mpc = _is_from_mpc
         collection_db_entry.mpc_token_obtaining_url = _mpc_token_obtaining_url
         session.commit()
-        logging.info(f"Updated {_catalog_url} {_collection_id} in the database")
+        logger.info(f"Updated {_catalog_url} {_collection_id} in the database")
 
 
 if __name__ == '__main__':
     plugin_enable_statement =  sa.text("CREATE EXTENSION IF NOT EXISTS postgis;")
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(plugin_enable_statement)
+        logger.info("Enabled postgis extension")
+        print("Enabled postgis extension")
+    # commit the changes
+
+
     base.metadata.create_all(engine)
